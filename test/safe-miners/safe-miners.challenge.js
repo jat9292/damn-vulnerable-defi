@@ -27,6 +27,8 @@ describe("[Challenge] Safe Miners", function () {
   });
 
   it("Exploit", async function () {
+    // we deploy up to 100 contract factories, unless one of them was able to retreive
+    // the good withdraw contract, then we stop deploying new factories to avoid wasting gas fees
     for (let i = 1; i < 100; i++) {
       if (
         !(await this.token.balanceOf(attacker.address)).eq(DEPOSIT_TOKEN_AMOUNT)
